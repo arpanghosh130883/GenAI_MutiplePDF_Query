@@ -9,10 +9,20 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
+import logging
+import pickle
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables and configure the API key
 load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    st.error("Google API key not found. Please set the GOOGLE_API_KEY environment variable.")
+else:
+    genai.configure(api_key=api_key)
 
 # Directory to store uploaded PDFs
 PDF_DIR = "uploaded_pdfs"
@@ -39,7 +49,7 @@ def get_pdf_text(pdf_paths):
                 if page_text:
                     text += page_text
             except Exception as e:
-                print(f"Error extracting text from page: {e}")
+                logger.error(f"Error extracting text from page: {e}")
     return text
 
 def list_stored_pdfs():
@@ -55,15 +65,22 @@ def get_vector_store(text_chunks):
     """Creates and saves a vector store from text chunks."""
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-    vector_store.save_local("faiss_index")
+    try:
+        vector_store.save_local("faiss_index")
+    except PermissionError as e:
+        logger.error(f"PermissionError while saving FAISS index: {e}")
+        st.error(f"PermissionError while saving FAISS index: {e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while saving FAISS index: {e}")
+        st.error(f"An unexpected error occurred while saving FAISS index: {e}")
 
 def get_conversational_chain():
     """Creates and returns a conversational chain for the chatbot."""
     prompt_template = """
-    Act as AI-PDF expert. Users upload one or more PDF files and ask you questions based on those uploaded files.
-    Your job is to understand the question and generate as detailed as possible answers based on the context of PDF. 
+    Act as an AI-PDF expert. Users upload one or more PDF files and ask you questions based on those uploaded files.
+    Your job is to understand the question and generate as detailed as possible answers based on the context of the PDF. 
     Identify one or more paragraphs that contain relevant information and combine them to provide a long and detailed answer.
-    If the answer is not in provided context just say, "answer is not available in the context", don't provide the wrong answer\n\n
+    If the answer is not in the provided context just say, "The answer is not available in the context", don't provide the wrong answer.\n\n
     Context:\n {context}?\n
     Question: \n{question}\n
 
@@ -73,25 +90,37 @@ def get_conversational_chain():
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     return load_qa_chain(model, chain_type="stuff", prompt=prompt)
 
+def safe_load_faiss_index(index_path):
+    """Safely loads a FAISS index."""
+    if os.path.exists(index_path):
+        with open(index_path, 'rb') as f:
+            return pickle.load(f)
+    else:
+        raise FileNotFoundError(f"FAISS index file not found at {index_path}")
+
 def user_input(user_question):
     """Processes the user's question and displays the response."""
     detailed_question = user_question + " Explain in detail."
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
-    docs = new_db.similarity_search(detailed_question)
-    chain = get_conversational_chain()
     try:
+        new_db = FAISS.load_local("faiss_index", embeddings)
+        docs = new_db.similarity_search(detailed_question)
+        chain = get_conversational_chain()
         response = chain({"input_documents": docs, "question": detailed_question}, return_only_outputs=True)
         st.write("Reply:", response["output_text"])
+    except FileNotFoundError as fnf_error:
+        st.error("FAISS index file not found. Please ensure the file exists.")
+    except PermissionError as pe:
+        st.error(f"PermissionError: {pe}")
+    except ValueError as ve:
+        st.error("ValueError while loading FAISS index. Please check the embeddings and index file.")
     except Exception as e:
-        if "stop condition" in str(e):
-            st.write("Reply:", "Sorry, I couldn't find an answer based on the provided context.")
-        else:
-            raise e
+        logger.error(f"An unexpected error occurred: {e}")
+        st.error("An unexpected error occurred. Please check the logs for more details.")
 
 def main():
     """Main function to run the Streamlit app."""
-    st.set_page_config("Chat PDF")
+    st.set_page_config(page_title="Chat with Your PDFs", layout="wide")
 
     # Custom CSS for black background
     st.markdown(
@@ -119,16 +148,18 @@ def main():
 
     with st.sidebar:
         st.header("Upload PDFs")
-        # Set max upload size to 200MB per file (adjust as needed)
-        #st.set_option("server.maxUploadSize", 200)
         uploaded_files = st.file_uploader("Upload PDF files here", type="pdf", accept_multiple_files=True)
         if st.button("Process Uploaded PDFs"):
-            with st.spinner("Processing..."):
-                pdf_paths = save_uploaded_files(uploaded_files)
-                raw_text = get_pdf_text(pdf_paths)
-                text_chunks = get_text_chunks(raw_text)
-                get_vector_store(text_chunks)
-                st.success("PDFs processed successfully!")
+            if uploaded_files:
+                with st.spinner("Processing..."):
+                    pdf_paths = save_uploaded_files(uploaded_files)
+                    raw_text = get_pdf_text(pdf_paths)
+                    text_chunks = get_text_chunks(raw_text)
+                    get_vector_store(text_chunks)
+                    st.success("PDFs processed successfully!")
+            else:
+                st.error("No PDF files uploaded. Please upload PDF files to process.")
+        
         # Display the list of stored PDFs
         st.header("Stored PDFs")
         for pdf_file in list_stored_pdfs():
