@@ -1,11 +1,20 @@
 from dotenv import load_dotenv
+from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv()
+
 import streamlit as st
 import google.generativeai as genai
 import PyPDF2 as pdf
 import re
 from sklearn.feature_extraction.text import CountVectorizer
+import os
+
+os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
+os.environ["LANGCHAIN_TRACING_V2"]="true"
+os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
+os.environ["LANGCHAIN_PROJECT"]=os.getenv("LANGCHAIN_PROJECT")
+os.environ["LANGCHAIN_ENDPOINT"]="https://api.smith.langchain.com"
 
 # Define the prompt template
 prompt_template = """
