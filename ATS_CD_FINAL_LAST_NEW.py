@@ -33,7 +33,7 @@ As an ATS scanner and a Technical HR Manager, please provide an analysis of the 
 def get_gemini_response(job_description, resume_text, jd_match, position_match):
     # Format the input text using the prompt template
     input_text = prompt_template.format(job_description=job_description, resume_text=resume_text, jd_match=jd_match, position_match=position_match)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-pro')
     response = model.generate_content(input_text)
     return response.text
 
