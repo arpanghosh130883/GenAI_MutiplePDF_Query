@@ -17,7 +17,7 @@ os.environ["LANGCHAIN_PROJECT"]=os.getenv("LANGCHAIN_PROJECT")
 os.environ["LANGCHAIN_ENDPOINT"]="https://api.smith.langchain.com"
 
 
-genai.configure(api_key="XXXXX")  ### Configuring the API key for the streamlit app to work in streamlit cloud after deployment
+# genai.configure(api_key="XXXXX")  ### Uncomment this when we are deploying in Streamlit cloud Configuring the API key for the streamlit app to work in streamlit cloud after deployment
 
 
 # Define the prompt template
