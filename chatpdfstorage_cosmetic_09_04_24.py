@@ -73,6 +73,7 @@ def get_conversational_chain():
     Answer:
     """
     model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
+    # model = genai.GenerativeModel('gemini-1.5-flash', temperature=0.3) #  If you are getting quota limit for pro modle use this model
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     return load_qa_chain(model, chain_type="stuff", prompt=prompt)
 
