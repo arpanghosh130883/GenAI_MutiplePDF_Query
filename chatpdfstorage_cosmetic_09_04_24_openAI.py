@@ -5,7 +5,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import google.generativeai as genai
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import ChatGoogleGenerativeAI
+#from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
@@ -14,7 +14,9 @@ from langchain.chat_models import ChatOpenAI
 
 # Load environment variables and configure the API key
 load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+#genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Support Streamlit secrets too
+OPENAI_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY", None)
 
 
 # genai.configure(api_key="XXXXX")  ### Uncomment this when we are deploying in Streamlit cloud Configuring the API key for the streamlit app to work in streamlit cloud after deployment
@@ -80,7 +82,8 @@ def get_conversational_chain():
     model = ChatOpenAI(
     model="gpt-4",         # or "gpt-3.5-turbo"
     temperature=0.3,
-    #api_key="your-openai-api-key"  # or set it via env variable
+    api_key=OPENAI_KEY,# or set it via env variable
+    temperature=0
 )
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     return load_qa_chain(model, chain_type="stuff", prompt=prompt)
