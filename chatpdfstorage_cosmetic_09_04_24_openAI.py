@@ -82,8 +82,7 @@ def get_conversational_chain():
     model = ChatOpenAI(
     model="gpt-4",         # or "gpt-3.5-turbo"
     temperature=0.3,
-    api_key=OPENAI_KEY,# or set it via env variable
-    temperature=0
+    api_key=OPENAI_KEY# or set it via env variable
 )
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     return load_qa_chain(model, chain_type="stuff", prompt=prompt)
